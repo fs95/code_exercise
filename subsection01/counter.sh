@@ -27,7 +27,7 @@ function traverse {
         done
     fi
     # temp=($size $large_then1M); echo ${temp[*]} # 返回数组的方式
-    echo $temp $large_then1M
+    echo $size $large_then1M
 }
 
 if [ $# -ne 1 ] || [ ! -d $1 ]; then # 参数数量！=1，或者第一个参数不是目录或不存在
