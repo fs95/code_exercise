@@ -2,3 +2,9 @@ Hello, world!
 ello, world.
 llo, world, he.
 lo, world?
+a
+A
+b
+B
+c
+C
