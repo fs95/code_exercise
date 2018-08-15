@@ -19,7 +19,7 @@ int strcoll_wrapper(const void *v1, const void *v2)
     return strcoll(*(const char **)v1, *(const char **)v2);
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char const *argv[])
 {
     char buffer[MAX_LENTH]; // File read buffer
     char *line[MAX_LINE]; // All lines of the file
@@ -54,5 +54,12 @@ int main(int argc, char *argv[])
         cout << line[i];
     }
 
+    // Free
+    fclose(inputFile);
+    for (int i = 0; i < linesN; i++) {
+        free(line[i]);
+        line[i] = NULL;
+    }
+    
     return 0;
 }

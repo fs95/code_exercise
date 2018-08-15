@@ -23,6 +23,7 @@ int main()
         for (const string &item : str_vector) {
             cout << item << endl;
         }
+        file.close();
     } else {
         cout << "Can't open file!" << endl;
     }
