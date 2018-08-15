@@ -31,8 +31,8 @@ function traverse {
 }
 
 if [ $# -ne 1 ] || [ ! -d $1 ]; then # 参数数量！=1，或者第一个参数不是目录或不存在
-    echo "counter: Need parameter"
-    echo "usage: counter DIR"
+    echo "Error: Need parameter"
+    echo "Usage: counter DIR"
     exit 1
 else
     file=$1
