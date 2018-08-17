@@ -6,8 +6,9 @@
 
 using namespace std;
 
+// Comparison function in descending order
 bool compare(const string &a, const string &b) {
-    return a > b; //降序排列的比较函数
+    return a > b;
 }
 
 int main()

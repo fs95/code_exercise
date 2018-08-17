@@ -1,7 +1,5 @@
-/*
-    Function: Recceive a character file as a parameter(in English and Chinese),
-    sort and output each line according to pinyin.
-*/
+// Function: Recceive a character file as a parameter(in English and Chinese),
+// sort and output each line according to pinyin.
 
 #include <locale.h>
 #include <stdio.h>
@@ -14,7 +12,7 @@ using namespace std;
 #define MAX_LINE 1024
 #define MAX_LENTH 1024
 
-int strcoll_wrapper(const void *v1, const void *v2)
+int strcollWrapper(const void *v1, const void *v2)
 {
     return strcoll(*(const char **)v1, *(const char **)v2);
 }
@@ -49,7 +47,7 @@ int main(int argc, char const *argv[])
     }
 
     // Sort and output
-    qsort(line, linesN, sizeof(line[0]), strcoll_wrapper);
+    qsort(line, linesN, sizeof(line[0]), strcollWrapper);
     for (int i = 0; i < linesN; i++) {
         cout << line[i];
     }
