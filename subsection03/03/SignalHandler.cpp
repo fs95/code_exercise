@@ -5,16 +5,16 @@
 
 using namespace std;
 
-static void signalMonitor(int signo);
+static void SignalMonitor(int signo);
 
 int main()
 {
-    if (signal(SIGQUIT, signalMonitor) == SIG_ERR) {
+    if (signal(SIGQUIT, SignalMonitor) == SIG_ERR) {
         cout << "Can't catch!" << endl;
         exit(1);
     }
 
-    if (signal(SIGTERM, signalMonitor) == SIG_ERR) {
+    if (signal(SIGTERM, SignalMonitor) == SIG_ERR) {
         cout << "Can't catch!" << endl;
         exit(1);
     }
@@ -25,7 +25,7 @@ int main()
     }
 }
 
-void signalMonitor(int signo)
+void SignalMonitor(int signo)
 {
     if (signo == SIGQUIT) {
         cout << "Bye" << endl;

@@ -12,7 +12,7 @@ using namespace std;
 #define MAX_LINE 1024
 #define MAX_LENTH 1024
 
-int strcollWrapper(const void *v1, const void *v2)
+int StrcollWrapper(const void *v1, const void *v2)
 {
     return strcoll(*(const char **)v1, *(const char **)v2);
 }
@@ -47,7 +47,7 @@ int main(int argc, char const *argv[])
     }
 
     // Sort and output
-    qsort(line, linesN, sizeof(line[0]), strcollWrapper);
+    qsort(line, linesN, sizeof(line[0]), StrcollWrapper);
     for (int i = 0; i < linesN; i++) {
         cout << line[i];
     }
