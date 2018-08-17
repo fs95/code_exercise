@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <dirent.h>
 
 using namespace std;
@@ -34,15 +35,16 @@ int main(int argc, char const *argv[])
 long getDirSize(char const *dirPath, int *large_then1M) 
 {
     DIR *dirp = opendir(dirPath);
-    if (dirp == NULL) { // Output error message
+    if (dirp == nullptr) { // Output error message
         perror("Error");
         return 0;
     } else {
-        dirent *subEntry = NULL; // Subentry under the directory
+        dirent *subEntry = nullptr; // Subentry under the directory
         long totalSize = 0; // Total size of the directory
 
         // Traversing each file
-        while (subEntry = readdir(dirp)) {
+        subEntry = readdir(dirp);
+        while (subEntry) {
             string fileName(subEntry->d_name);
             if (fileName == "." || fileName == "..") {
                 continue;
@@ -58,6 +60,7 @@ long getDirSize(char const *dirPath, int *large_then1M)
                     totalSize += getDirSize(subFilePath.c_str(), large_then1M);
                 }
             }
+            subEntry = readdir(dirp);
         }
         closedir(dirp);
         return totalSize;
@@ -65,13 +68,13 @@ long getDirSize(char const *dirPath, int *large_then1M)
 }
 
 // Get the size of the file
-unsigned long getFileSize(char const *filePath) 
+unsigned long getFileSize(char const *filePath)
 {
-    if (filePath == NULL) {
+    if (filePath == nullptr) {
         return 0;
     } else {
-        struct stat info;  
+        struct stat info{};
         stat(filePath, &info);
-        return info.st_size;
+        return static_cast<unsigned long>(info.st_size);
     }
 }

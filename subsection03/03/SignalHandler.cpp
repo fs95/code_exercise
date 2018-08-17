@@ -1,12 +1,39 @@
 #include <signal.h>
+#include <iostream>
+#include <stdlib.h>
+#include <unistd.h>
 
-typedef void signalFunc(int);
+using namespace std;
 
-static void sig_usr(int);
+static void signalMonitor(int signo);
 
-int main(void)
+int main()
 {
-    if (signal(SIGUSR1, sig_usr) == SIG_ERR) {
-        err_sys("can't")
+    if (signal(SIGQUIT, signalMonitor) == SIG_ERR) {
+        cout << "Can't catch!" << endl;
+        exit(1);
+    }
+
+    if (signal(SIGTERM, signalMonitor) == SIG_ERR) {
+        cout << "Can't catch!" << endl;
+        exit(1);
+    }
+
+    while (true) {
+        cout << "Hello" << endl;
+        sleep(1);
+    }
+}
+
+void signalMonitor(int signo)
+{
+    if (signo == SIGQUIT) {
+        cout << "Bye" << endl;
+        exit(0);
+    } else if (signo == SIGTERM) {
+        cout << "Bye" << endl;
+        exit(0);
+    } else {
+        abort();
     }
 }
