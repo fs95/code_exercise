@@ -1,4 +1,4 @@
-// Get the size of the specified directory
+// Function: Get the size of the specified directory
 // and the number of files larger than 1M
 
 #include <iostream>
@@ -23,7 +23,7 @@ int main(int argc, char const *argv[])
     long size = getDirSize(argv[1], &large_then1M);
 
     // Output result
-    cout << "The total size of the $1 directory: " << size << "[byte]" << endl;
+    cout << "The total size of the " << argv[1] << "directory: " << size << "[byte]" << endl;
     cout << "The number of files larger than 1M: " << large_then1M << endl;
 
     return 0;
@@ -31,8 +31,8 @@ int main(int argc, char const *argv[])
 
 // Get the size of the specified directory
 // and the number of files larger than 1M
-long getDirSize(char const *dirPath, int *large_then1M) {
-
+long getDirSize(char const *dirPath, int *large_then1M) 
+{
     DIR *dirp = opendir(dirPath);
     if (dirp == NULL) { // Output error message
         perror("Error");
@@ -59,12 +59,14 @@ long getDirSize(char const *dirPath, int *large_then1M) {
                 }
             }
         }
+        closedir(dirp);
         return totalSize;
     }
 }
 
 // Get the size of the file
-unsigned long getFileSize(char const *filePath) {
+unsigned long getFileSize(char const *filePath) 
+{
     if (filePath == NULL) {
         return 0;
     } else {
