@@ -1,4 +1,5 @@
 // Output UTC time and high precision local time
+
 #include <iostream>
 #include <time.h>
 #include <sys/time.h>
@@ -12,14 +13,7 @@ int main(int argc, char const *argv[])
     char buff[32];
     
     time(&utcTime); // Get system UTC time
-    tmp = gmtime(&utcTime); // Seconds converted to time structure
-
-    // Time format
-    if (strftime(buff, 32, "UTC: %F %T", tmp) != 0) {
-        cout << buff << endl;
-    } else {
-        cout << "Buffer lenth is too small." << endl;
-    }
+    cout << "UTC: " << utcTime << "sec" << endl;
 
     timespec tsp;
     clock_gettime(CLOCK_REALTIME, &tsp); // Get high precision UTC time
