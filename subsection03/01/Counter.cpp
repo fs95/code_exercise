@@ -43,8 +43,7 @@ long getDirSize(char const *dirPath, int *large_then1M)
         long totalSize = 0; // Total size of the directory
 
         // Traversing each file
-        subEntry = readdir(dirp);
-        while (subEntry) {
+        while ((subEntry = readdir(dirp))) {
             string fileName(subEntry->d_name);
             if (fileName == "." || fileName == "..") {
                 continue;
@@ -60,7 +59,6 @@ long getDirSize(char const *dirPath, int *large_then1M)
                     totalSize += getDirSize(subFilePath.c_str(), large_then1M);
                 }
             }
-            subEntry = readdir(dirp);
         }
         closedir(dirp);
         return totalSize;
