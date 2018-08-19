@@ -1,9 +1,15 @@
+/*
+ * Practice the use of the message queue, the parent process sends a message
+ * to child process through the message queue, and the child process send a
+ * message to the parent process after receiving the message.
+ */
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <unistd.h>
 #include <iostream>
 #include <string.h>
+#include <errno.h>
 
 using namespace std;
 
@@ -12,6 +18,7 @@ using namespace std;
 #define PARENT_TEXT "ABC"
 #define CHILD_TYPE 100 // Type and content sent by child process
 #define CHILD_TEXT "DEF"
+#define DEBUG 0
 
 // Message queue message item
 typedef struct {
@@ -42,7 +49,7 @@ int main()
 
     // Create child process
     pid_t pid = fork();
-    if (pid < 0) {
+    if (pid < 0) { // Error
         perror("fork");
         exit(EXIT_FAILURE);
 
@@ -79,10 +86,11 @@ void ParentProcess(void *arg)
             cout << "[Parent]The data received is not " << CHILD_TEXT << endl;
         }
 
-        // Get message information
+        // Get message queue information
         msqid_ds msqidDs{};
         msgctl(msgId, IPC_STAT, &msqidDs);
 
+#if DEBUG == 1
         // Clear message queue
         while (msqidDs.msg_qnum) {
             if (msgrcv(msgId, &msgBuf, MAX_TEXT, 0, 0) == -1) {
@@ -93,7 +101,10 @@ void ParentProcess(void *arg)
                 cout << "[Parent]Read all the rest:" << msgBuf.msgText << endl;
             }
         }
+#endif
+
         msgctl(msgId, IPC_RMID, &msqidDs); // Close message queue
+        cout << "[DEBUG]Message queue has been deleted." << endl;
     }
     exit(EXIT_SUCCESS);
 }
