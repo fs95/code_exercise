@@ -6,27 +6,21 @@
  */
 
 #include <iostream>
-#include <pthread.h>
 #include <cstring>
 #include <stdlib.h>
+#include <thread>
+#include <mutex>
 
 using namespace std;
 
 #define SELF_INC_NUM 1e+7 // The number of increments pre variable
 
-//#define USE_LOCK_TYPE_MUTEX // Use thread mutex
-#define USE_LOCK_TYPE_SPIN // Use thread spin lock
-
-typedef void *(*ThreadFunc_t)(void*); // Thread function type
+typedef void (*ThreadFunc_t)(void*); // Thread function type
 
 // Variable thread lock
 struct VarLock_s {
     int64_t *const ptr; // Variable pointer
-#ifdef USE_LOCK_TYPE_MUTEX
-    pthread_mutex_t mutexLock; // Use if define USE_LOCK_TYPE_MUTEX
-#else
-    pthread_spinlock_t spinLock; // Use if define USE_LOCK_TYPE_SPIN
-#endif
+    mutex c11MutexLock; // C11 thread mutex
 };
 
 int64_t p = 0;  // For the 1/2/3 threads, the result is 3e+9
@@ -35,10 +29,10 @@ int64_t r = 0;  // For the 1/3 threads, the result is 2e+9
 int64_t s = 0;  // For the 1/2/3/4 threads, the result is 4e+9
 
 // Variable and lock
-struct VarLock_s pVarLock = {&p, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s qVarLock = {&q, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s rVarLock = {&r, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s sVarLock = {&s, PTHREAD_MUTEX_INITIALIZER};
+struct VarLock_s pVarLock = {&p};
+struct VarLock_s qVarLock = {&q};
+struct VarLock_s rVarLock = {&r};
+struct VarLock_s sVarLock = {&s};
 
 // Variable increment and lock detection
 #define INC_MACRO(remain,varLock_p) \
@@ -51,21 +45,9 @@ struct VarLock_s sVarLock = {&s, PTHREAD_MUTEX_INITIALIZER};
 // Try lock a lock and increment variable
 bool IncVarLock(struct VarLock_s *varLock_p)
 {
-
-#ifdef USE_LOCK_TYPE_MUTEX
-    int rtn = pthread_mutex_trylock(&varLock_p->mutexLock);
-#else
-    int rtn = pthread_spin_trylock(&varLock_p->spinLock);
-#endif
-
-    if (rtn == 0) { // Lock successfully
+    if (varLock_p->c11MutexLock.try_lock()) { // Lock successfully
         (*varLock_p->ptr)++;
-
-#ifdef USE_LOCK_TYPE_MUTEX
-        pthread_mutex_unlock(&varLock_p->mutexLock);
-#else
-        pthread_spin_unlock(&varLock_p->spinLock);
-#endif
+        varLock_p->c11MutexLock.unlock();
         return true;
 
     } else { // The variable is locked by another thread
@@ -74,7 +56,7 @@ bool IncVarLock(struct VarLock_s *varLock_p)
 }
 
 // Thread 1 run function
-void *ThreadFunc1(void *)
+void ThreadFunc1(void *)
 {
     // Remaining increment
     auto pr = static_cast<int64_t>(SELF_INC_NUM);
@@ -88,12 +70,10 @@ void *ThreadFunc1(void *)
         INC_MACRO(rr,&rVarLock);
         INC_MACRO(sr,&sVarLock);
     }
-
-    return ((void*)1);
 }
 
 // Thread 2 run function
-void *ThreadFunc2(void *)
+void ThreadFunc2(void *)
 {
     auto pr = static_cast<int64_t>(SELF_INC_NUM);
     auto qr = static_cast<int64_t>(SELF_INC_NUM);
@@ -104,12 +84,10 @@ void *ThreadFunc2(void *)
         INC_MACRO(qr,&qVarLock);
         INC_MACRO(sr,&sVarLock);
     }
-
-    return ((void*)2);
 }
 
 // Thread 3 run function
-void *ThreadFunc3(void *)
+void ThreadFunc3(void *)
 {
     auto pr = static_cast<int64_t>(SELF_INC_NUM);
     auto rr = static_cast<int64_t>(SELF_INC_NUM);
@@ -120,12 +98,10 @@ void *ThreadFunc3(void *)
         INC_MACRO(rr,&rVarLock);
         INC_MACRO(sr,&sVarLock);
     }
-
-    return ((void*)3);
 }
 
 // Thread 4 run function
-void *ThreadFunc4(void *)
+void ThreadFunc4(void *)
 {
     auto qr = static_cast<int64_t>(SELF_INC_NUM);
     auto sr = static_cast<int64_t>(SELF_INC_NUM);
@@ -134,51 +110,24 @@ void *ThreadFunc4(void *)
         INC_MACRO(qr,&qVarLock);
         INC_MACRO(sr,&sVarLock);
     }
-
-    return ((void*)4);
 }
 
 int main()
 {
-    int error;
-    void *threadReturn; // Receive thread return value
-    pthread_t pthreadIDs[4];
-    ThreadFunc_t threadFuncs[4] = {
-            ThreadFunc1,
-            ThreadFunc2,
-            ThreadFunc3,
-            ThreadFunc4
-    };
-
-#ifdef USE_LOCK_TYPE_SPIN
-    // Thread spin lock init
-    pthread_spin_init(&pVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
-    pthread_spin_init(&qVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
-    pthread_spin_init(&rVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
-    pthread_spin_init(&sVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
-#endif
-
     // Get current time
     timespec tsp1{};
     clock_gettime(CLOCK_REALTIME, & tsp1); // Get high precision UTC time
 
     // Create thread
-    for (int i = 0; i < 4; i++) {
-        error = pthread_create(&pthreadIDs[i], nullptr, threadFuncs[i], nullptr);
-        if (error != 0) {
-            cout << "pthread_create:" << strerror(error) << endl;
-            exit(EXIT_FAILURE);
-        }
-    }
+    thread thread1(ThreadFunc1, nullptr);
+    thread thread2(ThreadFunc2, nullptr);
+    thread thread3(ThreadFunc3, nullptr);
+    thread thread4(ThreadFunc4, nullptr);
 
-    // Wait thread
-    for (int i = 0; i < 4; i++) {
-        error = pthread_join(pthreadIDs[i], &threadReturn);
-        if (error != 0) {
-            cout << "pthread_join" << i+1 << strerror(error) << endl;
-            exit(EXIT_FAILURE);
-        }
-    }
+    thread1.join();
+    thread2.join();
+    thread3.join();
+    thread4.join();
 
     // Time spent
     timespec tsp2{};
