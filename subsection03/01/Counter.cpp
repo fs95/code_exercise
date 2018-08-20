@@ -16,7 +16,7 @@ int main(int argc, char const *argv[])
 {
     if (argc < 2) {
         cout << "Error: Please input a directory." << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     
     // Get directory size

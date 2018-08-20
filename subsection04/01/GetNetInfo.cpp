@@ -5,6 +5,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 
 using namespace std;
@@ -78,6 +79,8 @@ int main()
             (unsigned char)ifrs[if_len].ifr_ifru.ifru_hwaddr.sa_data[5]);
         }
     }
+
+    close(fd);
 
     exit(EXIT_SUCCESS);
 }

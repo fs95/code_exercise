@@ -11,12 +11,12 @@ int main()
 {
     if (signal(SIGQUIT, SignalMonitor) == SIG_ERR) {
         cout << "Can't catch!" << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     if (signal(SIGTERM, SignalMonitor) == SIG_ERR) {
         cout << "Can't catch!" << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     while (true) {
@@ -29,10 +29,10 @@ void SignalMonitor(int signo)
 {
     if (signo == SIGQUIT) {
         cout << "Bye" << endl;
-        exit(0);
+        exit(EXIT_SUCCESS);
     } else if (signo == SIGTERM) {
         cout << "Bye" << endl;
-        exit(0);
+        exit(EXIT_SUCCESS);
     } else {
         abort();
     }

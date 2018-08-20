@@ -25,19 +25,20 @@ int main(int argc, char const *argv[])
 
     if (argc < 2) {
         cout << "Error: Please input a parameter." << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     FILE *inputFile = fopen(argv[1], "r");
     if (inputFile == NULL) {
         perror("Error:"); // Output error information
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     // Locale set: The locale setting will affect the use of the "strcoll()"
     char *localeSet = setlocale(LC_COLLATE, "zh_CN.UTF-8");
     if (localeSet == NULL) {
         cout << "Locale setting failed!" << endl;
+        exit(EXIT_FAILURE);
     }
     
     // The number of lines is calculated from zero
