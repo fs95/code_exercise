@@ -35,10 +35,10 @@ int64_t r = 0;  // For the 1/3 threads, the result is 2e+9
 int64_t s = 0;  // For the 1/2/3/4 threads, the result is 4e+9
 
 // Variable and lock
-struct VarLock_s pVarLock = {&p, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s qVarLock = {&q, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s rVarLock = {&r, PTHREAD_MUTEX_INITIALIZER};
-struct VarLock_s sVarLock = {&s, PTHREAD_MUTEX_INITIALIZER};
+struct VarLock_s pVarLock = {&p};
+struct VarLock_s qVarLock = {&q};
+struct VarLock_s rVarLock = {&r};
+struct VarLock_s sVarLock = {&s};
 
 // Variable increment and lock detection
 #define INC_MACRO(remain,varLock_p) \
@@ -150,7 +150,13 @@ int main()
             ThreadFunc4
     };
 
-#ifdef USE_LOCK_TYPE_SPIN
+#ifdef USE_LOCK_TYPE_MUTEX
+    // Thread spin lock init
+    pthread_mutex_init(&pVarLock.mutexLock, nullptr);
+    pthread_mutex_init(&qVarLock.mutexLock, nullptr);
+    pthread_mutex_init(&rVarLock.mutexLock, nullptr);
+    pthread_mutex_init(&sVarLock.mutexLock, nullptr);
+#else
     // Thread spin lock init
     pthread_spin_init(&pVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
     pthread_spin_init(&qVarLock.spinLock, PTHREAD_PROCESS_PRIVATE);
