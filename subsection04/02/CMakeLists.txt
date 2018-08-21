@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
-project(TCP_connect)
+project(Socket)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(TCP_server.out TCP_server.cpp Common.h)
-add_executable(TCP_client.out TCP_client.cpp Common.h)
+add_executable(SocketServer.out SocketServer.cpp Common.h)
+add_executable(SocketClient.out SocketClient.cpp Common.h)

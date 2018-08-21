@@ -73,12 +73,12 @@ int main()
             exit(EXIT_FAILURE);
         } else { // Connection succeeded
             // Receive msg from client
-            char buf[] = "pong";
+            char buf[5];
             read(newfd, buf, sizeof(buf));
             cout << buf << endl;
 
             // Send msg to client
-            strcpy(buf, "pong");
+            strncpy(buf, "pong", 5);
             write(newfd, buf, sizeof(buf));
 
             close(fd);

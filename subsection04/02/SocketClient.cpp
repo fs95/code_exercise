@@ -34,7 +34,8 @@ int main()
 
     } else { // Connect succeed
         // Send msg to server
-        char buf[] = "ping";
+        char buf[5];
+        strncpy(buf, "ping", 5);
         write(fd, buf, sizeof(buf));
 
         // Receive msg from server
