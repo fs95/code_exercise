@@ -67,21 +67,22 @@ int main()
     } else {
         socklen_t addrLen = sizeof(cliAddr);
         int newfd;
-        if ((newfd = accept(fd, (struct sockaddr*)&cliAddr, &addrLen)) < 0) {
-            perror("accept");
-            close(fd);
-            exit(EXIT_FAILURE);
-        } else { // Connection succeeded
-            // Receive msg from client
-            char buf[5];
-            read(newfd, buf, sizeof(buf));
-            cout << buf << endl;
+        for (int i = 0; i < CONNECT_NUM; i++) {
+            if ((newfd = accept(fd, (struct sockaddr*)&cliAddr, &addrLen)) <= 0) {
+                perror("accept");
+                break;
+            } else { // Connection succeeded
+                // Receive msg from client
+                char buf[] = "pong";
+                read(newfd, buf, sizeof(buf));
+                cout << i << ",newfd: " << newfd << buf << endl;
 
-            // Send msg to client
-            strncpy(buf, "pong", 5);
-            write(newfd, buf, sizeof(buf));
+                // Send msg to client
+                strcpy(buf, "pong");
+                write(newfd, buf, sizeof(buf));
 
-            close(newfd);
+                close(newfd);
+            }
         }
     }
     close(fd);
