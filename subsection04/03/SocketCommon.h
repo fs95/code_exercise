@@ -7,17 +7,24 @@
 
 #include <netinet/in.h>
 #include <poll.h>
+#include <string>
 
+#define LOCAL_IP "127.0.0.1"
 #define SERVER_PORT (8192)
-#define CONNECT_NUM (700)
-#define DELAY_TIME (1)
+#define CONNECT_NUM (1000)
+#define DELAY_TIME (10)
+#define EPOLL_EVENT_NUM (500)
+#define EPOLL_WAIT_TIME (100)
 
 bool SetNonBlock(int fd);
-
-#define SOCKET_POLLIN (POLLIN|POLLPRI)
-#define SOCKET_POLLOUT (POLLWRBAND|POLLOUT)
-
 int InitServer(int type, const struct sockaddr *addr, socklen_t alen, int qlen);
+void GetEpollEventStr(int event, std::string &out);
+int AddEpollEvent(int epollfd, int fd, uint32_t state);
+int DeleteEpollEvent(int epollfd, int fd, uint32_t state);
+int ModifyEpollEvent(int epollfd, int fd, uint32_t state);
+int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep);
+int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep);
+int HandleEpollAccept(struct epoll_event *event, int epollfd, int listenfd, bool keep);
 
 #define CLIENT_SEND_STR "ping"
 #define SERVER_SEND_STR "pong"

@@ -1,130 +1,123 @@
 #include <iostream>
 #include <unistd.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include <arpa/inet.h>
-#include <pthread.h>
-#include <sys/fcntl.h>
-#include <poll.h>
+#include <sys/epoll.h>
+#include <vector>
+#include <list>
 #include "SocketCommon.h"
 #include "GetDoubleTime.h"
 
 using namespace std;
 
-// Task state
-enum TaskState_e {
-    STATE_WR,
-    STATE_WAIT,
-    STATE_EXIT,
+// Socket descriptor delay required
+struct Delayfd_s {
+    bool isClose;
+    int fd;
+    double startTime;
 };
 
-// 1000 task information
-struct TaskInfo_s {
-    int fd;
-    enum TaskState_e state;
-    double time;
-} taskInfos[CONNECT_NUM];
-
-struct pollfd pollfds[CONNECT_NUM];
-
-const char sendStr[] = CLIENT_SEND_STR;
-char recvBuf[512];
-
-bool ClientStateMachine(struct TaskInfo_s *_taskInfo, struct pollfd *fdPoll,
-        const char *sendBuf, char *recvBuf, size_t bufLen)
+// Added to the list of delayed waits
+void AddToDelayClose(list<struct Delayfd_s> &delayfds, int fd)
 {
-    if (fdPoll->fd >= 0 && fdPoll->revents & SOCKET_POLLOUT) {
-        // Send msg to server
-        string str(sendBuf + std::to_string(_taskInfo->fd));
-        if (write(fdPoll->fd, str.c_str(), str.size()) <= 0) {
-//            perror("write");
-        } else { // Write successful
-            cout << "Write success!" << fdPoll->fd << endl;
-            fdPoll->events = SOCKET_POLLIN;
-        }
-    } else if (fdPoll->fd >= 0 && fdPoll->revents & SOCKET_POLLIN) {
-        // Receive msg from server
-        if ((read(fdPoll->fd, recvBuf, bufLen)) < 0 && errno == EAGAIN) {
-            cout << errno << endl;
-            perror("read");
-        } else { // Read successful
-            cout << "Read:" << recvBuf << endl;
-            fdPoll->fd = -1; // Ignore
-            _taskInfo->state = STATE_WAIT; // Update state
-            _taskInfo->time = GetDoubleTime(); // Get current time
-        }
-    } else if (_taskInfo->state == STATE_WAIT
-    && GetDoubleTimeDiff(_taskInfo->time) >= DELAY_TIME) {
-        // 10 seconds waiting to be completed!
-        // Close socket and exit
-        close(_taskInfo->fd);
-        _taskInfo->state = STATE_EXIT;
-    }
-
-    return (_taskInfo->state == STATE_EXIT);
+    struct Delayfd_s dfd{};
+    dfd.fd = fd;
+    dfd.startTime = GetDoubleTime();
+    dfd.isClose = false;
+    delayfds.push_back(dfd);
 }
+
+// Polling detection ends all delays
+bool DelayIsOK(list<struct Delayfd_s> &delayfds)
+{
+    double curTime = GetDoubleTime();
+    for (auto dfd : delayfds) {
+        if (!dfd.isClose) {
+            // Not closed and delay time detected has not been reached
+            if ((curTime - dfd.startTime) < DELAY_TIME) {
+                return false;
+            } else { // End of delay
+                close(dfd.fd);
+                dfd.isClose = true;
+            }
+        }
+    }
+    return true;
+}
+
+// Handle every event of polling
+void HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
+                 char *buf, size_t len, list<struct Delayfd_s> &delayfds)
+{
+    for (int i = 0; i < eventNum; i++) {
+        // Epoll event macro turned to human readable
+        string evStr;
+        GetEpollEventStr(events[i].events, evStr);
+        printf("[%d]%s, fd:%d, ", i, evStr.c_str(), events[i].data.fd);
+
+        if (events[i].events & (EPOLLHUP | EPOLLERR)) {
+            cout << "delete" << endl;
+            close(events[i].data.fd);
+            DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
+        } else if (events[i].events & EPOLLIN) {
+            if (0 == HandleEpollRead(epollfd, events[i].data.fd, buf, len, false)) {
+                DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
+                AddToDelayClose(delayfds, events[i].data.fd);
+            }
+        } else if (events[i].events & EPOLLOUT) {
+            HandleEpollWrite(epollfd, events[i].data.fd, buf, true);
+        }
+    }
+}
+
 
 int main()
 {
-    double startTime = GetDoubleTime(); // Get current time
-
     struct sockaddr_in sAddr{};
-    sAddr.sin_family = AF_INET; // IPv4
+    sAddr.sin_family = AF_INET;
     sAddr.sin_port = htons(SERVER_PORT);
-    inet_pton(AF_INET, "127.0.0.1", &sAddr.sin_addr); // Local
+    inet_pton(AF_INET, LOCAL_IP, &sAddr.sin_addr);
+
+    int epollfd = epoll_create(10);
+    struct epoll_event events[CONNECT_NUM];
+    char buf[1024] = CLIENT_SEND_STR;
+    list<struct Delayfd_s> delayfds;
+    double startTime = GetDoubleTime();
 
     for (int i = 0; i < CONNECT_NUM; i++) {
+        int fd;
         // Create socket
-        if (0 > (taskInfos[i].fd = socket(AF_INET, SOCK_STREAM, 0))) {
+        if (0 > (fd = socket(AF_INET, SOCK_STREAM, 0))) {
             perror("socket");
             exit(EXIT_FAILURE);
+        } else {
+            SetNonBlock(fd);
+            AddEpollEvent(epollfd, fd, EPOLLOUT);
         }
-
-        // Init
-        SetNonBlock(taskInfos[i].fd);
-        pollfds[i].fd = taskInfos[i].fd;
-        pollfds[i].events = SOCKET_POLLOUT;
-        pollfds[i].revents = SOCKET_POLLOUT;
-        taskInfos[i].state = STATE_WR;
-
-        // Connect failed
-        if (connect(taskInfos[i].fd, (struct sockaddr*)&sAddr, sizeof(sAddr)) < 0
+        if (0 > connect(fd, (struct sockaddr*)&sAddr, sizeof(sAddr))
             && errno != EINPROGRESS) {
-            close(taskInfos[i].fd);
             perror("connect");
+            close(fd);
             exit(EXIT_FAILURE);
-        } else { // Connect succeed
-            ClientStateMachine(&taskInfos[i], &pollfds[i], sendStr,
-                    recvBuf, sizeof(recvBuf));
         }
     }
 
-    bool needPoll = true;
-    while (true) {
-        bool quit = true;
-        if (needPoll) {
-            cout << "Poll: " << poll(pollfds, CONNECT_NUM, -1) << endl;
-            needPoll = false;
-        }
-        for (int i = 0; i < CONNECT_NUM; i++) {
-            struct pollfd &pfd = pollfds[i];
-
-            if (!ClientStateMachine(&taskInfos[i], &pollfds[i], sendStr,
-                    recvBuf, sizeof(recvBuf))) {
-                quit = false;
+    int eventNum;
+    for (;;) {
+        if (delayfds.size() == CONNECT_NUM) {
+            if (DelayIsOK(delayfds)) {
+                break;
             }
-            if (pfd.fd != -1) {
-                needPoll = true;
+        } else {
+            if ((eventNum = epoll_wait(epollfd, events, EPOLL_EVENT_NUM,
+                    EPOLL_WAIT_TIME))) {
+                HandleEvents(epollfd, events, eventNum, buf, sizeof(buf), delayfds);
             }
-        }
-        if (quit) {
-            break;
         }
     }
-    cout << "Finish! Time consuming:" << GetDoubleTimeDiff(startTime) << endl;
+
+    cout << "Time:" << GetDoubleTimeDiff(startTime) << endl;
 
     exit(EXIT_SUCCESS);
 }

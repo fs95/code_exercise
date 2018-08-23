@@ -4,133 +4,83 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <sys/epoll.h>
 #include <arpa/inet.h>
-#include <sys/poll.h>
 #include "SocketCommon.h"
 
 using namespace std;
 
-// Task state
-enum STaskState_e {
-    STATE_CONNECT,
-    STATE_WR,
-    STATE_EXIT,
-};
-
-struct STaskInfo_s {
-    int fd;
-    enum STaskState_e state;
-} taskInfos[CONNECT_NUM];
-
-struct pollfd pollfds[CONNECT_NUM+1];
-//struct pollfd lispollfd; // Listen fd
-
-const char sendStr[] = SERVER_SEND_STR;
-char recvBuf[512];
-
-bool ServerStateMachine(int fd, struct STaskInfo_s *_taskInfo, struct pollfd *lisfdPoll, struct pollfd *sockfdPoll,
-        const char *sendBuf, char *recvBuf, size_t bufLen)
+int SocketListenNonBlc(const char *addr, uint16_t port, int listen)
 {
-    if (_taskInfo->state == STATE_CONNECT && lisfdPoll->fd >= 0
-    && lisfdPoll->revents & SOCKET_POLLIN) {
-        if ((_taskInfo->fd = accept(fd, nullptr, nullptr)) <= 0) {
-//            perror("accept");
-        } else {
-            sockfdPoll->fd = _taskInfo->fd;
-            cout << "Connect success!" << sockfdPoll->fd << endl;
-            sockfdPoll->events = SOCKET_POLLIN;
-            _taskInfo->state = STATE_WR;
-        }
+    int listenfd;
+    struct sockaddr_in lisAddr{};
+
+    memset(&lisAddr, 0, sizeof(lisAddr));
+    lisAddr.sin_family = AF_INET; // IPv4
+    lisAddr.sin_port = htons(port); // Need to be converted to network byte order
+    inet_pton(AF_INET, addr, &lisAddr.sin_addr.s_addr);
+
+    // TCP socket
+    if ((listenfd = InitServer(SOCK_STREAM, (struct sockaddr*)&lisAddr,
+            sizeof(lisAddr), listen)) < 0) {
+        perror("InitServer");
+        return -1;
     }
 
-    if (_taskInfo->state == STATE_WR && sockfdPoll->fd > 0
-    && sockfdPoll->revents & SOCKET_POLLIN) {
-        // Receive msg from server
-        if ((read(sockfdPoll->fd, recvBuf, bufLen)) < 0 && errno == EAGAIN) {
-//            perror("read");
-        } else { // Read successful
-            cout << "Read:" << recvBuf << endl;
-            sockfdPoll->events = SOCKET_POLLOUT;
-        }
-    } else if (_taskInfo->state == STATE_WR && sockfdPoll->fd > 0
-    && sockfdPoll->revents & SOCKET_POLLOUT) {
-        // Send msg to server
-        string str(sendBuf + std::to_string(sockfdPoll->fd));
-        if (write(sockfdPoll->fd, str.c_str(), str.size()) <= 0) {
-//            perror("write");
-        } else { // Write successful
-            cout << "Write successful!" << sockfdPoll->fd << endl;
-            sockfdPoll->fd = -1; // Ignore
-            _taskInfo->state = STATE_EXIT;
-            // TODO close(fd)
+    SetNonBlock(listenfd);
+
+    return listenfd;
+}
+
+int HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
+                  int listenfd, char *buf, size_t len)
+{
+    int retOkNum = 0;
+    for (int i = 0; i < eventNum; i++) {
+        string evStr;
+        GetEpollEventStr(events[i].events, evStr);
+        printf("[%d]%s, fd:%d, ", i, evStr.c_str(), events[i].data.fd);
+
+        if (events[i].data.fd == listenfd && events[i].events & EPOLLIN) {
+            HandleEpollAccept(&events[i], epollfd, listenfd, true);
+        } else if (events[i].events & (EPOLLHUP | EPOLLERR)) {
+            cout << "delete" << endl;
+            close(events[i].data.fd);
+            DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
+        } else if (events[i].events & EPOLLIN) {
+            if (1 == HandleEpollRead(epollfd, events[i].data.fd, buf, len, true)) {
+                retOkNum++;
+            }
+        } else if (events[i].events & EPOLLOUT) {
+            HandleEpollWrite(epollfd, events[i].data.fd, buf, true);
         }
     }
-    return _taskInfo->state == STATE_EXIT;
+    return retOkNum;
 }
 
 int main()
 {
-    struct sockaddr_in lisAddr{};
-    struct sockaddr_in cliAddr{};
+    int listenfd = SocketListenNonBlc(LOCAL_IP, SERVER_PORT, CONNECT_NUM);
+    struct epoll_event events[EPOLL_EVENT_NUM];
+    int epollfd = epoll_create(10);
+    char buf[1024] = SERVER_SEND_STR;
+    int completionN = 0;
 
-    memset(&lisAddr, 0, sizeof(lisAddr));
-    lisAddr.sin_family = AF_INET; // IPv4
-    lisAddr.sin_port = htons(SERVER_PORT); // Converted to network byte order
-    inet_pton(AF_INET, "127.0.0.1", &lisAddr.sin_addr.s_addr);
+    AddEpollEvent(epollfd, listenfd, EPOLLIN);
 
-    int fd;
-    // TCP socket
-    if ((fd = InitServer(SOCK_STREAM, (struct sockaddr*)&lisAddr, sizeof(lisAddr), 10)) < 0) {
-        perror("InitServer");
-        exit(EXIT_FAILURE);
-    }
-
-    // Init
-    SetNonBlock(fd);
-    pollfds[CONNECT_NUM].fd = fd;
-    pollfds[CONNECT_NUM].events = SOCKET_POLLIN;
-    pollfds[CONNECT_NUM].revents = POLLIN;
-    for (int i = 0; i < CONNECT_NUM; i++) {
-        taskInfos[i].state = STATE_CONNECT;
-        pollfds[i].fd = -1; // Ignore
-        pollfds[i].events = SOCKET_POLLIN;
-        pollfds[i].revents = POLLIN;
-    }
-
-    socklen_t addrLen = sizeof(cliAddr);
-    int newfds[CONNECT_NUM];
-    bool needPoll = false;
-    while (true) {
-        bool quit = true;
-        if (needPoll) {
-            poll(pollfds, CONNECT_NUM+1, -1);
-            needPoll = false;
-        }
-        for (int i = 0; i < CONNECT_NUM; i++) {
-
-            if (!ServerStateMachine(fd, &taskInfos[i], &pollfds[CONNECT_NUM], &pollfds[i], sendStr,
-                               recvBuf, sizeof(recvBuf))) {
-                quit = false;
-            }
-        }
-        for (auto &taskInfo : taskInfos) {
-            if (taskInfo.state != STATE_EXIT) {
-                needPoll = true;
+    int eventNum;
+    for (;;) {
+        if ((eventNum = epoll_wait(epollfd, events, EPOLL_EVENT_NUM, 
+                EPOLL_WAIT_TIME))) {
+            completionN += HandleEvents(epollfd, events, eventNum, listenfd, 
+                    buf, sizeof(buf));
+            if (completionN == CONNECT_NUM) {
                 break;
             }
         }
-        for (int i = 0; i < CONNECT_NUM; i++) {
-            if (pollfds[i].fd > 0) {
-                quit = false;
-                break;
-            }
-        }
-        if (quit) {
-            break;
-        }
     }
-    close(fd);
 
+    close(epollfd);
+    close(listenfd);
     exit(EXIT_SUCCESS);
 }
