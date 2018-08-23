@@ -149,7 +149,6 @@ int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep)
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
         ret = -1;
     } else if (nread == 0) {
-        printf("client close.\n");
         close(fd);
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
         ret = 1;
@@ -174,7 +173,6 @@ int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep)
         DeleteEpollEvent(epollfd, fd, EPOLLOUT);
         ret = 1;
     } else {
-        cout << "write succeed" << endl;
         if (keep) {
             ModifyEpollEvent(epollfd, fd, EPOLLIN);
         }
@@ -183,7 +181,7 @@ int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep)
     return ret;
 }
 
-int HandleEpollAccept(struct epoll_event *event, int epollfd, int listenfd, bool keep)
+int HandleEpollAccept(int epollfd, int listenfd, bool keep)
 {
     int ret;
     struct sockaddr_in cliaddr{};
@@ -194,8 +192,6 @@ int HandleEpollAccept(struct epoll_event *event, int epollfd, int listenfd, bool
         perror("accpet");
         ret = -1;
     } else {
-        printf("accept a new client%d: %s:%d\n",
-               event->data.u32, inet_ntoa(cliaddr.sin_addr), cliaddr.sin_port);
         if (keep) {
             AddEpollEvent(epollfd, clifd, EPOLLIN);
         }

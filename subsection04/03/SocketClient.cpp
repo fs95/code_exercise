@@ -51,13 +51,7 @@ void HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
                  char *buf, size_t len, list<struct Delayfd_s> &delayfds)
 {
     for (int i = 0; i < eventNum; i++) {
-        // Epoll event macro turned to human readable
-        string evStr;
-        GetEpollEventStr(events[i].events, evStr);
-        printf("[%d]%s, fd:%d, ", i, evStr.c_str(), events[i].data.fd);
-
         if (events[i].events & (EPOLLHUP | EPOLLERR)) {
-            cout << "delete" << endl;
             close(events[i].data.fd);
             DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
         } else if (events[i].events & EPOLLIN) {

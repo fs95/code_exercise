@@ -24,7 +24,7 @@ int DeleteEpollEvent(int epollfd, int fd, uint32_t state);
 int ModifyEpollEvent(int epollfd, int fd, uint32_t state);
 int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep);
 int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep);
-int HandleEpollAccept(struct epoll_event *event, int epollfd, int listenfd, bool keep);
+int HandleEpollAccept(int epollfd, int listenfd, bool keep);
 
 #define CLIENT_SEND_STR "ping"
 #define SERVER_SEND_STR "pong"

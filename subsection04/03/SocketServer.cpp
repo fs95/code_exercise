@@ -37,14 +37,9 @@ int HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
 {
     int retOkNum = 0;
     for (int i = 0; i < eventNum; i++) {
-        string evStr;
-        GetEpollEventStr(events[i].events, evStr);
-        printf("[%d]%s, fd:%d, ", i, evStr.c_str(), events[i].data.fd);
-
         if (events[i].data.fd == listenfd && events[i].events & EPOLLIN) {
-            HandleEpollAccept(&events[i], epollfd, listenfd, true);
+            HandleEpollAccept(epollfd, listenfd, true);
         } else if (events[i].events & (EPOLLHUP | EPOLLERR)) {
-            cout << "delete" << endl;
             close(events[i].data.fd);
             DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
         } else if (events[i].events & EPOLLIN) {
