@@ -96,9 +96,6 @@ void GetEpollEventStr(int event, std::string &out)
     if (event & EPOLLRDHUP) {
         out += "[RDHUP]";
     }
-    if (event & EPOLLEXCLUSIVE) {
-        out += "[EXCLUSIVE]";
-    }
     if (event & EPOLLWAKEUP) {
         out += "[WAKEUP]";
     }
@@ -152,7 +149,7 @@ int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep)
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
         ret = -1;
     } else if (nread == 0) {
-        printf("fd: %d client close.\n", fd);
+        printf("client close.\n");
         close(fd);
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
         ret = 1;
