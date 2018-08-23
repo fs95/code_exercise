@@ -8,7 +8,7 @@ if [ $# -ne 0 ]; then
         exit 0
     else
         echo "invalid option"
-        echo "usage: fibonacci [--clean]"
+        echo "usage: $0 [--clean]"
         exit 1
     fi
 fi

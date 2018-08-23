@@ -15,10 +15,10 @@ unsigned long getFileSize(char const *filePath);
 int main(int argc, char const *argv[])
 {
     if (argc < 2) {
-        cout << "Error: Please input a directory." << endl;
+        fprintf(stderr, "Usage: %s [path]", argv[0]);
         exit(EXIT_FAILURE);
     }
-    
+
     // Get directory size
     int large_then1M = 0;
     long size = getDirSize(argv[1], &large_then1M);
@@ -32,7 +32,7 @@ int main(int argc, char const *argv[])
 
 // Get the size of the specified directory
 // and the number of files larger than 1M
-long getDirSize(char const *dirPath, int *large_then1M) 
+long getDirSize(char const *dirPath, int *large_then1M)
 {
     DIR *dirp = opendir(dirPath);
     if (dirp == nullptr) { // Output error message

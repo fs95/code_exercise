@@ -24,7 +24,7 @@ int main(int argc, char const *argv[])
     int linesN = 0; // The number of lines
 
     if (argc < 2) {
-        cout << "Error: Please input a parameter." << endl;
+        fprintf(stderr, "Usage: %s [file]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -35,12 +35,13 @@ int main(int argc, char const *argv[])
     }
 
     // Locale set: The locale setting will affect the use of the "strcoll()"
+    char *localeBackup = setlocale(LC_COLLATE, NULL);
     char *localeSet = setlocale(LC_COLLATE, "zh_CN.UTF-8");
     if (localeSet == NULL) {
         cout << "Locale setting failed!" << endl;
         exit(EXIT_FAILURE);
     }
-    
+
     // The number of lines is calculated from zero
     for (linesN = 0; linesN < MAX_LINE && fgets(buffer, MAX_LENTH, inputFile) != NULL; linesN++) {
         line[linesN] = (char *)malloc(strlen(buffer) + 1); // Get memory
@@ -54,11 +55,12 @@ int main(int argc, char const *argv[])
     }
 
     // Free
+    setlocale(LC_COLLATE, localeBackup);
     fclose(inputFile);
     for (int i = 0; i < linesN; i++) {
         free(line[i]);
         line[i] = NULL;
     }
-    
+
     return 0;
 }

@@ -32,9 +32,9 @@ function traverse {
 }
 
 # Number of parameters != 1, or the first parameter is not a directory or does not exist
-if [ $# -ne 1 ] || [ ! -d $1 ]; then 
+if [ $# -ne 1 ] || [ ! -d $1 ]; then
     echo "Error: Need parameter"
-    echo "Usage: counter DIR"
+    echo "Usage: $0 [path]"
     exit 1
 else
     file=$1
