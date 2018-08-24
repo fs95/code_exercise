@@ -71,7 +71,7 @@ unsigned long getFileSize(char const *filePath)
     if (filePath == nullptr) {
         return 0;
     } else {
-        struct stat info{};
+        struct stat info;
         stat(filePath, &info);
         return static_cast<unsigned long>(info.st_size);
     }

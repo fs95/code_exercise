@@ -115,7 +115,7 @@ void ThreadFunc4(void *)
 int main()
 {
     // Get current time
-    timespec tsp1{};
+    timespec tsp1;
     clock_gettime(CLOCK_REALTIME, & tsp1); // Get high precision UTC time
 
     // Create thread
@@ -130,7 +130,7 @@ int main()
     thread4.join();
 
     // Time spent
-    timespec tsp2{};
+    timespec tsp2;
     clock_gettime(CLOCK_REALTIME, &tsp2); // Get high precision UTC time
     float timeConsume = tsp2.tv_sec - tsp1.tv_sec
             + (tsp2.tv_nsec - tsp1.tv_nsec) / 1e9f;

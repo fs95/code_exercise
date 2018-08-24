@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define SELF_INC_NUM 1e+7 // The number of increments pre variable
+#define SELF_INC_NUM ((int64_t)1e+7) // The number of increments pre variable
 
 //#define USE_LOCK_TYPE_MUTEX // Use thread mutex
 #define USE_LOCK_TYPE_SPIN // Use thread spin lock
@@ -29,6 +29,11 @@ struct VarLock_s {
 #endif
 };
 
+struct Arguments_s {
+    int argc;
+    void **argv;
+};
+
 int64_t p = 0;  // For the 1/2/3 threads, the result is 3e+9
 int64_t q = 0;  // For the 1/2/4 threads, the result is 3e+9
 int64_t r = 0;  // For the 1/3 threads, the result is 2e+9
@@ -41,10 +46,10 @@ struct VarLock_s rVarLock = {&r};
 struct VarLock_s sVarLock = {&s};
 
 // Variable increment and lock detection
-#define INC_MACRO(remain,varLock_p) \
+#define INC_MACRO(remain_p,varLock_p) \
     do { \
-        if (remain && IncVarLock(varLock_p)) { \
-            remain--; \
+        if ((*remain_p) && IncVarLock(varLock_p)) { \
+            (*remain_p)--; \
         }; \
     } while (0);
 
@@ -73,69 +78,25 @@ bool IncVarLock(struct VarLock_s *varLock_p)
     }
 }
 
-// Thread 1 run function
-void *ThreadFunc1(void *)
+void *ThreadFunc(void *ptr)
 {
-    // Remaining increment
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto rr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
+    auto *arg = (struct Arguments_s*)ptr;
+    int64_t num[arg->argc];
+    for (auto &n : num)
+        n = SELF_INC_NUM;
 
-    while (pr || qr || rr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(rr,&rVarLock);
-        INC_MACRO(sr,&sVarLock);
+    while (true) {
+        int64_t Continue = 0;
+
+        for (int i = 0; i < arg->argc; i++) {
+            INC_MACRO(&num[i], (struct VarLock_s*)arg->argv[i]);
+            Continue |= num[i];
+        }
+        if (0 == Continue)
+            break;
     }
 
-    return ((void*)1);
-}
-
-// Thread 2 run function
-void *ThreadFunc2(void *)
-{
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (pr || qr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-
-    return ((void*)2);
-}
-
-// Thread 3 run function
-void *ThreadFunc3(void *)
-{
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto rr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (pr || rr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(rr,&rVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-
-    return ((void*)3);
-}
-
-// Thread 4 run function
-void *ThreadFunc4(void *)
-{
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (qr || sr) {
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-
-    return ((void*)4);
+    return nullptr;
 }
 
 int main()
@@ -143,12 +104,7 @@ int main()
     int error;
     void *threadReturn; // Receive thread return value
     pthread_t pthreadIDs[4];
-    ThreadFunc_t threadFuncs[4] = {
-            ThreadFunc1,
-            ThreadFunc2,
-            ThreadFunc3,
-            ThreadFunc4
-    };
+    struct Arguments_s argus[4];
 
 #ifdef USE_LOCK_TYPE_MUTEX
     // Thread spin lock init
@@ -165,12 +121,36 @@ int main()
 #endif
 
     // Get current time
-    timespec tsp1{};
+    timespec tsp1;
     clock_gettime(CLOCK_REALTIME, & tsp1); // Get high precision UTC time
 
     // Create thread
+    argus[0].argc = 4;
+    argus[0].argv = (void **)malloc(argus[0].argc * sizeof(void*));
+    argus[0].argv[0] = &pVarLock;
+    argus[0].argv[1] = &qVarLock;
+    argus[0].argv[2] = &rVarLock;
+    argus[0].argv[3] = &sVarLock;
+
+    argus[1].argc = 3;
+    argus[1].argv = (void **)malloc(argus[1].argc * sizeof(void*));
+    argus[1].argv[0] = &pVarLock;
+    argus[1].argv[1] = &qVarLock;
+    argus[1].argv[2] = &sVarLock;
+
+    argus[2].argc = 3;
+    argus[2].argv = (void **)malloc(argus[2].argc * sizeof(void*));
+    argus[2].argv[0] = &pVarLock;
+    argus[2].argv[1] = &rVarLock;
+    argus[2].argv[2] = &sVarLock;
+
+    argus[3].argc = 2;
+    argus[3].argv = (void **)malloc(argus[3].argc * sizeof(void*));
+    argus[3].argv[0] = &qVarLock;
+    argus[3].argv[1] = &sVarLock;
+
     for (int i = 0; i < 4; i++) {
-        error = pthread_create(&pthreadIDs[i], nullptr, threadFuncs[i], nullptr);
+        error = pthread_create(&pthreadIDs[i], nullptr, ThreadFunc, &argus[i]);
         if (error != 0) {
             cout << "pthread_create:" << strerror(error) << endl;
             exit(EXIT_FAILURE);
@@ -187,7 +167,7 @@ int main()
     }
 
     // Time spent
-    timespec tsp2{};
+    timespec tsp2;
     clock_gettime(CLOCK_REALTIME, &tsp2); // Get high precision UTC time
     float timeConsume = tsp2.tv_sec - tsp1.tv_sec
             + (tsp2.tv_nsec - tsp1.tv_nsec) / 1e9f;

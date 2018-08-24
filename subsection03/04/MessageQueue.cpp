@@ -87,7 +87,7 @@ void ParentProcess(void *arg)
         }
 
         // Get message queue information
-        msqid_ds msqidDs{};
+        msqid_ds msqidDs;
         msgctl(msgId, IPC_STAT, &msqidDs);
 
 #if DEBUG == 1
