@@ -13,7 +13,7 @@ using namespace std;
 int main()
 {
     int fd = 0;
-    struct ifconf ifc{};
+    struct ifconf ifc;
     struct ifreq ifrs[5];
 
     // IPv4 UDP socket fd

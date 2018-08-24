@@ -50,8 +50,8 @@ int InitServer(int type, const struct sockaddr *addr, socklen_t alen, int qlen)
 
 int main()
 {
-    struct sockaddr_in lisAddr{};
-    struct sockaddr_in cliAddr{};
+    struct sockaddr_in lisAddr;
+    struct sockaddr_in cliAddr;
 
     memset(&lisAddr, 0, sizeof(lisAddr));
     lisAddr.sin_family = AF_INET; // IPv4
@@ -74,12 +74,12 @@ int main()
         } else { // Connection succeeded
             // Receive msg from client
             char buf[5];
-            read(newfd, buf, sizeof(buf));
+            recv(newfd, buf, sizeof(buf), 0);
             cout << buf << endl;
 
             // Send msg to client
             strncpy(buf, "pong", 5);
-            write(newfd, buf, sizeof(buf));
+            send(newfd, buf, sizeof(buf), 0);
 
             close(newfd);
         }

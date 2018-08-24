@@ -16,6 +16,11 @@
 #define EPOLL_EVENT_NUM (500)
 #define EPOLL_WAIT_TIME (100)
 
+// Handle epoll read state
+#define SOCKET_CLOSED (1)
+#define SOCKET_READ_SUCC (0)
+#define SOCKET_READ_FAILED (-1)
+
 bool SetNonBlock(int fd);
 int InitServer(int type, const struct sockaddr *addr, socklen_t alen, int qlen);
 void GetEpollEventStr(int event, std::string &out);
@@ -24,7 +29,7 @@ int DeleteEpollEvent(int epollfd, int fd, uint32_t state);
 int ModifyEpollEvent(int epollfd, int fd, uint32_t state);
 int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep);
 int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep);
-int HandleEpollAccept(int epollfd, int listenfd, bool keep);
+void HandleEpollAccept(int epollfd, int listenfd, bool keep);
 
 #define CLIENT_SEND_STR "ping"
 #define SERVER_SEND_STR "pong"

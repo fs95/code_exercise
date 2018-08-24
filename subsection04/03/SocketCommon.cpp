@@ -109,7 +109,7 @@ void GetEpollEventStr(int event, std::string &out)
 
 int AddEpollEvent(int epollfd, int fd, uint32_t state)
 {
-    struct epoll_event ev{};
+    struct epoll_event ev;
     ev.events = state;
     ev.data.fd = fd;
     return epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
@@ -117,7 +117,7 @@ int AddEpollEvent(int epollfd, int fd, uint32_t state)
 
 int DeleteEpollEvent(int epollfd, int fd, uint32_t state)
 {
-    struct epoll_event ev{};
+    struct epoll_event ev;
     ev.events = state;
     ev.data.fd = fd;
     return epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,&ev);
@@ -125,7 +125,7 @@ int DeleteEpollEvent(int epollfd, int fd, uint32_t state)
 
 int ModifyEpollEvent(int epollfd, int fd, uint32_t state)
 {
-    struct epoll_event ev{};
+    struct epoll_event ev;
     ev.events = state;
     ev.data.fd = fd;
     return epoll_ctl(epollfd,EPOLL_CTL_MOD,fd,&ev);
@@ -142,22 +142,22 @@ int HandleEpollRead(int epollfd, int fd, char *buf, size_t len, bool keep)
 {
     static int readNum = 0;
     int ret;
-    ssize_t nread = read(fd, buf, len);
+    ssize_t nread = recv(fd, buf, len, 0);
     if (nread < 0) {
         perror("read");
         close(fd);
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
-        ret = -1;
+        ret = SOCKET_READ_FAILED;
     } else if (nread == 0) {
         close(fd);
         DeleteEpollEvent(epollfd, fd, EPOLLIN);
-        ret = 1;
+        ret = SOCKET_CLOSED;
     } else {
         cout << ++readNum << "read:" << buf << endl;
         if (keep) {
             ModifyEpollEvent(epollfd, fd, EPOLLOUT);
         }
-        ret = 0;
+        ret = SOCKET_READ_SUCC;
     }
     return ret;
 }
@@ -166,7 +166,7 @@ int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep)
 {
     int ret;
     string str(buf + std::to_string(fd));
-    ssize_t nwrite = write(fd, str.c_str(), str.size()+1);
+    ssize_t nwrite = send(fd, str.c_str(), str.size()+1, 0);
     if (nwrite < 0) {
         perror("write");
         close(fd);
@@ -181,21 +181,17 @@ int HandleEpollWrite(int epollfd, int fd, char *buf, bool keep)
     return ret;
 }
 
-int HandleEpollAccept(int epollfd, int listenfd, bool keep)
+void HandleEpollAccept(int epollfd, int listenfd, bool keep)
 {
-    int ret;
-    struct sockaddr_in cliaddr{};
+    struct sockaddr_in cliaddr;
     socklen_t cliaddrlen = sizeof(struct sockaddr_in);
 
     int clifd = accept(listenfd, (struct sockaddr*)&cliaddr, &cliaddrlen);
     if (clifd == -1) {
         perror("accpet");
-        ret = -1;
     } else {
         if (keep) {
             AddEpollEvent(epollfd, clifd, EPOLLIN);
         }
-        ret = 0;
     }
-    return ret;
 }

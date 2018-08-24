@@ -13,7 +13,7 @@ using namespace std;
 int main()
 {
     int fd;
-    struct sockaddr_in serAddr{};
+    struct sockaddr_in serAddr;
 
     // Create socket
     fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -36,10 +36,10 @@ int main()
         // Send msg to server
         char buf[5];
         strncpy(buf, "ping", 5);
-        write(fd, buf, sizeof(buf));
+        send(fd, buf, sizeof(buf), 0);
 
         // Receive msg from server
-        read(fd, buf, sizeof(buf));
+        recv(fd, buf, sizeof(buf), 0);
         cout << buf << endl;
 
         close(fd);

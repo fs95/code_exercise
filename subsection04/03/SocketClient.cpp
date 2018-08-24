@@ -21,7 +21,7 @@ struct Delayfd_s {
 // Added to the list of delayed waits
 void AddToDelayClose(list<struct Delayfd_s> &delayfds, int fd)
 {
-    struct Delayfd_s dfd{};
+    struct Delayfd_s dfd;
     dfd.fd = fd;
     dfd.startTime = GetDoubleTime();
     dfd.isClose = false;
@@ -55,7 +55,7 @@ void HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
             close(events[i].data.fd);
             DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
         } else if (events[i].events & EPOLLIN) {
-            if (0 == HandleEpollRead(epollfd, events[i].data.fd, buf, len, false)) {
+            if (SOCKET_READ_SUCC == HandleEpollRead(epollfd, events[i].data.fd, buf, len, false)) {
                 DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
                 AddToDelayClose(delayfds, events[i].data.fd);
             }
@@ -68,7 +68,7 @@ void HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
 
 int main()
 {
-    struct sockaddr_in sAddr{};
+    struct sockaddr_in sAddr;
     sAddr.sin_family = AF_INET;
     sAddr.sin_port = htons(SERVER_PORT);
     inet_pton(AF_INET, LOCAL_IP, &sAddr.sin_addr);

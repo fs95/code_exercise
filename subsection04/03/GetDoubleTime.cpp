@@ -5,10 +5,11 @@
 #include "GetDoubleTime.h"
 #include <time.h>
 
+
 double GetDoubleTime()
 {
     // Get current time
-    timespec tsp1{};
+    timespec tsp1;
     clock_gettime(CLOCK_REALTIME, &tsp1); // Get high precision UTC time
     return tsp1.tv_sec + tsp1.tv_nsec/1e9;
 }

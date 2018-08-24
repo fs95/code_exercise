@@ -13,7 +13,7 @@ using namespace std;
 int SocketListenNonBlc(const char *addr, uint16_t port, int listen)
 {
     int listenfd;
-    struct sockaddr_in lisAddr{};
+    struct sockaddr_in lisAddr;
 
     memset(&lisAddr, 0, sizeof(lisAddr));
     lisAddr.sin_family = AF_INET; // IPv4
@@ -43,7 +43,7 @@ int HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
             close(events[i].data.fd);
             DeleteEpollEvent(epollfd, events[i].data.fd, EPOLLIN|EPOLLOUT);
         } else if (events[i].events & EPOLLIN) {
-            if (1 == HandleEpollRead(epollfd, events[i].data.fd, buf, len, true)) {
+            if (SOCKET_CLOSED == HandleEpollRead(epollfd, events[i].data.fd, buf, len, true)) {
                 retOkNum++;
             }
         } else if (events[i].events & EPOLLOUT) {
@@ -65,9 +65,9 @@ int main()
 
     int eventNum;
     for (;;) {
-        if ((eventNum = epoll_wait(epollfd, events, EPOLL_EVENT_NUM, 
+        if ((eventNum = epoll_wait(epollfd, events, EPOLL_EVENT_NUM,
                 EPOLL_WAIT_TIME))) {
-            completionN += HandleEvents(epollfd, events, eventNum, listenfd, 
+            completionN += HandleEvents(epollfd, events, eventNum, listenfd,
                     buf, sizeof(buf));
             if (completionN == CONNECT_NUM) {
                 break;
