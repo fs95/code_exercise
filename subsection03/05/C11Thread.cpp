@@ -10,105 +10,32 @@
 #include <stdlib.h>
 #include <thread>
 #include <mutex>
+#include <atomic>
 
 using namespace std;
 
-#define SELF_INC_NUM 1e+7 // The number of increments pre variable
+#define SELF_INC_NUM ((int64_t)1e+7) // The number of increments pre variable
 
 typedef void (*ThreadFunc_t)(void*); // Thread function type
 
-// Variable thread lock
-struct VarLock_s {
-    int64_t *const ptr; // Variable pointer
-    mutex c11MutexLock; // C11 thread mutex
+struct Arguments_s {
+    int argc;
+    void **argv;
 };
 
-int64_t p = 0;  // For the 1/2/3 threads, the result is 3e+9
-int64_t q = 0;  // For the 1/2/4 threads, the result is 3e+9
-int64_t r = 0;  // For the 1/3 threads, the result is 2e+9
-int64_t s = 0;  // For the 1/2/3/4 threads, the result is 4e+9
+atomic<int64_t> p = {0};  // For the 1/2/3 threads, the result is 3e+9
+atomic<int64_t> q = {0};  // For the 1/2/4 threads, the result is 3e+9
+atomic<int64_t> r = {0};  // For the 1/3 threads, the result is 2e+9
+atomic<int64_t> s = {0};  // For the 1/2/3/4 threads, the result is 4e+9
 
-// Variable and lock
-struct VarLock_s pVarLock = {&p};
-struct VarLock_s qVarLock = {&q};
-struct VarLock_s rVarLock = {&r};
-struct VarLock_s sVarLock = {&s};
-
-// Variable increment and lock detection
-#define INC_MACRO(remain,varLock_p) \
-    do { \
-        if (remain && IncVarLock(varLock_p)) { \
-            remain--; \
-        }; \
-    } while (0);
-
-// Try lock a lock and increment variable
-bool IncVarLock(struct VarLock_s *varLock_p)
+void ThreadFunc(void *ptr)
 {
-    if (varLock_p->c11MutexLock.try_lock()) { // Lock successfully
-        (*varLock_p->ptr)++;
-        varLock_p->c11MutexLock.unlock();
-        return true;
+    auto *arg = (struct Arguments_s*)ptr;
 
-    } else { // The variable is locked by another thread
-        return false;
-    }
-}
-
-// Thread 1 run function
-void ThreadFunc1(void *)
-{
-    // Remaining increment
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto rr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (pr || qr || rr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(rr,&rVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-}
-
-// Thread 2 run function
-void ThreadFunc2(void *)
-{
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (pr || qr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-}
-
-// Thread 3 run function
-void ThreadFunc3(void *)
-{
-    auto pr = static_cast<int64_t>(SELF_INC_NUM);
-    auto rr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (pr || rr || sr) {
-        INC_MACRO(pr,&pVarLock);
-        INC_MACRO(rr,&rVarLock);
-        INC_MACRO(sr,&sVarLock);
-    }
-}
-
-// Thread 4 run function
-void ThreadFunc4(void *)
-{
-    auto qr = static_cast<int64_t>(SELF_INC_NUM);
-    auto sr = static_cast<int64_t>(SELF_INC_NUM);
-
-    while (qr || sr) {
-        INC_MACRO(qr,&qVarLock);
-        INC_MACRO(sr,&sVarLock);
+    for (int64_t j = 0; j < SELF_INC_NUM; j++) {
+        for (int i = 0; i < arg->argc; i++) {
+            (*(atomic<int64_t> *) arg->argv[i])++;
+        }
     }
 }
 
@@ -117,17 +44,43 @@ int main()
     // Get current time
     timespec tsp1;
     clock_gettime(CLOCK_REALTIME, & tsp1); // Get high precision UTC time
+    thread ths[4];
+    struct Arguments_s argus[4];
 
     // Create thread
-    thread thread1(ThreadFunc1, nullptr);
-    thread thread2(ThreadFunc2, nullptr);
-    thread thread3(ThreadFunc3, nullptr);
-    thread thread4(ThreadFunc4, nullptr);
+    argus[0].argc = 4;
+    argus[0].argv = (void **)malloc(argus[0].argc * sizeof(void*));
+    argus[0].argv[0] = &p;
+    argus[0].argv[1] = &q;
+    argus[0].argv[2] = &r;
+    argus[0].argv[3] = &s;
 
-    thread1.join();
-    thread2.join();
-    thread3.join();
-    thread4.join();
+    argus[1].argc = 3;
+    argus[1].argv = (void **)malloc(argus[1].argc * sizeof(void*));
+    argus[1].argv[0] = &p;
+    argus[1].argv[1] = &q;
+    argus[1].argv[2] = &s;
+
+    argus[2].argc = 3;
+    argus[2].argv = (void **)malloc(argus[2].argc * sizeof(void*));
+    argus[2].argv[0] = &p;
+    argus[2].argv[1] = &r;
+    argus[2].argv[2] = &s;
+
+    argus[3].argc = 2;
+    argus[3].argv = (void **)malloc(argus[3].argc * sizeof(void*));
+    argus[3].argv[0] = &q;
+    argus[3].argv[1] = &s;
+
+    for(int i = 0; i < 4; i++)
+    {
+        ths[i] = thread(&ThreadFunc, &argus[i]);
+    }
+
+    for(int i = 0; i < 4; i++)
+    {
+        ths[i].join();
+    }
 
     // Time spent
     timespec tsp2;
