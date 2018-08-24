@@ -37,6 +37,7 @@ void ThreadFunc(void *ptr)
             (*(atomic<int64_t> *) arg->argv[i])++;
         }
     }
+    free(arg->argv);
 }
 
 int main()
