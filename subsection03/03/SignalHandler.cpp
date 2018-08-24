@@ -24,7 +24,6 @@ int main()
         exit(EXIT_FAILURE);
     }
     while (true) {
-        alarm(1);
         pause();
     }
 }
@@ -38,6 +37,7 @@ void SignalMonitor(int signo)
         cout << "Bye" << endl;
         exit(EXIT_SUCCESS);
     } else if (signo == SIGALRM) {
+        alarm(1);
         cout << "Hello" << endl;
     } else {
         abort();
