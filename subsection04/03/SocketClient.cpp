@@ -39,9 +39,7 @@ int DelayIsOK(list<struct Delayfd_s> &delayfds)
         double curTime = GetDoubleTime();
         for (auto iter = delayfds.begin(); iter != delayfds.end(); iter++) {
             // Not closed and delay time detected has not been reached
-            if ((curTime - iter->startTime) < DELAY_TIME) {
-                return false;
-            } else { // End of delay
+            if ((curTime - iter->startTime) >= DELAY_TIME) {
                 close(iter->fd);
                 iter = delayfds.erase(iter);
                 retNum++;
