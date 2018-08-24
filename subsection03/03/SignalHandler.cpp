@@ -1,6 +1,6 @@
-#include <signal.h>
+#include <csignal>
 #include <iostream>
-#include <stdlib.h>
+#include <cstdlib>
 #include <unistd.h>
 
 using namespace std;
@@ -19,9 +19,13 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    if (signal(SIGALRM, SignalMonitor) == SIG_ERR) {
+        cout << "Can't catch!" << endl;
+        exit(EXIT_FAILURE);
+    }
     while (true) {
-        cout << "Hello" << endl;
-        sleep(1);
+        alarm(1);
+        pause();
     }
 }
 
@@ -33,6 +37,8 @@ void SignalMonitor(int signo)
     } else if (signo == SIGTERM) {
         cout << "Bye" << endl;
         exit(EXIT_SUCCESS);
+    } else if (signo == SIGALRM) {
+        cout << "Hello" << endl;
     } else {
         abort();
     }
