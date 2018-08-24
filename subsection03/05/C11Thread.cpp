@@ -45,7 +45,7 @@ int main()
     // Get current time
     timespec tsp1;
     clock_gettime(CLOCK_REALTIME, & tsp1); // Get high precision UTC time
-    thread ths[4];
+    thread *ths[4];
     struct Arguments_s argus[4];
 
     // Create thread
@@ -75,12 +75,13 @@ int main()
 
     for(int i = 0; i < 4; i++)
     {
-        ths[i] = thread(&ThreadFunc, &argus[i]);
+        ths[i] = new thread(&ThreadFunc, &argus[i]);
     }
 
     for(int i = 0; i < 4; i++)
     {
-        ths[i].join();
+        ths[i]->join();
+        delete ths[i];
     }
 
     // Time spent
