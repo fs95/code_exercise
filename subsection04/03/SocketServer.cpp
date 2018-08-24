@@ -55,7 +55,7 @@ int HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
 
 int main()
 {
-    int listenfd = SocketListenNonBlc(LOCAL_IP, SERVER_PORT, CONNECT_NUM);
+    int listenfd = SocketListenNonBlc(LOCAL_IP, SERVER_PORT, 10);
     if (listenfd < 0) {
         exit(EXIT_FAILURE);
     }
