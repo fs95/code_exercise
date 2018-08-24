@@ -56,8 +56,11 @@ int HandleEvents(int epollfd, struct epoll_event events[], int eventNum,
 int main()
 {
     int listenfd = SocketListenNonBlc(LOCAL_IP, SERVER_PORT, CONNECT_NUM);
+    if (listenfd < 0) {
+        exit(EXIT_FAILURE);
+    }
     struct epoll_event events[EPOLL_EVENT_NUM];
-    int epollfd = epoll_create(10);
+    int epollfd = epoll_create(EPOLL_EVENT_NUM);
     char buf[1024] = SERVER_SEND_STR;
     int completionN = 0;
 
