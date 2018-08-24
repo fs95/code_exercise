@@ -92,8 +92,10 @@ void *ThreadFunc(void *ptr)
             INC_MACRO(&num[i], (struct VarLock_s*)arg->argv[i]);
             Continue |= num[i];
         }
-        if (0 == Continue)
+        if (0 == Continue) {
+            free(arg->argv);
             break;
+        }
     }
 
     return nullptr;
