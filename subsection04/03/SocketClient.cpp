@@ -13,10 +13,14 @@ using namespace std;
 
 // Socket descriptor delay required
 struct Delayfd_s {
-    bool isClose;
     int fd;
     double startTime;
 };
+
+bool operator==(const struct Delayfd_s &ldfd, const struct Delayfd_s &rdfd)
+{
+    return ldfd.fd == rdfd.fd;
+}
 
 // Added to the list of delayed waits
 void AddToDelayClose(list<struct Delayfd_s> &delayfds, int fd)
@@ -24,26 +28,27 @@ void AddToDelayClose(list<struct Delayfd_s> &delayfds, int fd)
     struct Delayfd_s dfd;
     dfd.fd = fd;
     dfd.startTime = GetDoubleTime();
-    dfd.isClose = false;
     delayfds.push_back(dfd);
 }
 
 // Polling detection ends all delays
-bool DelayIsOK(list<struct Delayfd_s> &delayfds)
+int DelayIsOK(list<struct Delayfd_s> &delayfds)
 {
-    double curTime = GetDoubleTime();
-    for (auto dfd : delayfds) {
-        if (!dfd.isClose) {
+    int retNum = 0;
+    if (!delayfds.empty()) {
+        double curTime = GetDoubleTime();
+        for (auto iter = delayfds.begin(); iter != delayfds.end(); iter++) {
             // Not closed and delay time detected has not been reached
-            if ((curTime - dfd.startTime) < DELAY_TIME) {
+            if ((curTime - iter->startTime) < DELAY_TIME) {
                 return false;
             } else { // End of delay
-                close(dfd.fd);
-                dfd.isClose = true;
+                close(iter->fd);
+                iter = delayfds.erase(iter);
+                retNum++;
             }
         }
     }
-    return true;
+    return retNum;
 }
 
 // Handle every event of polling
@@ -97,21 +102,22 @@ int main()
         }
     }
 
-    int eventNum;
+    int finishNum = 0;
     for (;;) {
-        if (delayfds.size() == CONNECT_NUM) {
-            if (DelayIsOK(delayfds)) {
-                break;
-            }
+        if (finishNum == CONNECT_NUM) {
+            cout << "OK";
+            break;
         } else {
+            int eventNum;
             if ((eventNum = epoll_wait(epollfd, events, EPOLL_EVENT_NUM,
                     EPOLL_WAIT_TIME))) {
                 HandleEvents(epollfd, events, eventNum, buf, sizeof(buf), delayfds);
             }
         }
+        finishNum += DelayIsOK(delayfds);
     }
 
-    cout << "Time:" << GetDoubleTimeDiff(startTime) << endl;
+    cout << ", Time:" << GetDoubleTimeDiff(startTime) << endl;
 
     exit(EXIT_SUCCESS);
 }
